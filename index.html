@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coimbatore → Wayanad Route Planner</title>
+  <meta name="description" content="Route planner for Coimbatore to Wayanad scenic drive. Fuel calculator, cost splitter, PDF export." />
+  <meta name="theme-color" content="#0d1b2a" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <!-- Bootstrap 5 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg sticky-top" id="main-nav">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+      <span class="brand-icon">🏔️</span>
+      <span class="brand-text">CBE <span class="accent">→</span> Wayanad</span>
+    </a>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge offline-badge d-none" id="offline-badge"><i class="bi bi-wifi-off"></i> Offline</span>
+      <button class="btn btn-sm btn-outline-accent" id="theme-toggle" title="Toggle theme">
+        <i class="bi bi-sun-fill"></i>
+      </button>
+      <button class="btn btn-sm btn-accent" id="export-pdf-btn">
+        <i class="bi bi-file-earmark-pdf"></i> Export PDF
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Hero Strip -->
+<div class="hero-strip">
+  <div class="container-fluid px-3 py-2 d-flex flex-wrap align-items-center gap-3">
+    <div class="route-pill"><i class="bi bi-geo-alt-fill"></i> Coimbatore, TN</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Catherine Falls</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Dolphin's Nose</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Pykara Lake</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Needle Rock</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Pookode Lake</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill">Lakkidi View Point</div>
+    <div class="route-arrow">→</div>
+    <div class="route-pill"><i class="bi bi-geo-fill"></i> Wayanad, Kerala</div>
+  </div>
+</div>
+
+<div class="container-fluid px-3 py-3" id="app-container">
+
+  <!-- Stats Row -->
+  <div class="row g-3 mb-3" id="stats-row">
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Total Distance</div>
+        <div class="stat-value" id="stat-distance">~310 km</div>
+        <div class="stat-sub">Wayanad → Coimbatore</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Est. Drive Time</div>
+        <div class="stat-value" id="stat-time">~8–10 hrs</div>
+        <div class="stat-sub">Including stops</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Total Expenses</div>
+        <div class="stat-value accent-text" id="stat-fuel">₹0</div>
+        <div class="stat-sub">Sum of all added expenses</div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="stat-card">
+        <div class="stat-label">Per Person</div>
+        <div class="stat-value accent-text" id="stat-perperson">₹0</div>
+        <div class="stat-sub">Equal share per person</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map + Sidebar -->
+  <div class="row g-3 mb-3">
+    <!-- Live Status Card (when tracking) -->
+    <div class="col-lg-8" id="live-status-card" style="display:none;">
+      <div class="card" style="background: linear-gradient(135deg, #0d1b2a 0%, #1a3a52 100%); border: 2px solid #38d9a9;">
+        <div class="card-body d-flex align-items-center justify-content-between">
+          <div>
+            <div style="font-size: 2.5rem; margin-bottom: 8px;">🚗</div>
+            <div style="font-size: 0.9rem; color: var(--text-muted);">Live Tracking Active</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-size: 1.8rem; color: #38d9a9; font-weight: 700;" id="live-distance">-- km</div>
+            <div style="font-size: 0.85rem; color: var(--text-muted);">to destination</div>
+            <div style="font-size: 1.3rem; color: #4da6ff; margin-top: 8px;" id="live-speed">-- km/h</div>
+            <div style="font-size: 0.82rem; color: var(--text-muted);">speed</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Map -->
+    <div class="col-lg-8" id="map-container">
+      <div class="card map-card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-map"></i> Route Map</span>
+          <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-sm btn-outline-accent" id="live-track-btn">
+              <i class="bi bi-geo-alt-fill"></i> Start Live
+            </button>
+            <a href="https://www.google.com/maps/dir/Coimbatore,+Tamil+Nadu/Catherine+Falls,+Kotagiri/Dolphin's+Nose,+Coonoor/Pykara+Lake,+Ooty/Needle+Rock+View+Point,+Gudalur/Pookode+Lake,+Wayanad/Lakkidi+View+Point,+Wayanad/Wayanad,+Kerala"
+               target="_blank" rel="noopener" class="btn btn-sm btn-outline-accent">
+              <i class="bi bi-box-arrow-up-right"></i> Open in Maps
+            </a>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div id="map"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Waypoints -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="bi bi-pin-map"></i> Waypoints</div>
+        <div class="card-body p-0">
+          <div id="waypoints-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calculator Row -->
+  <div class="row g-3 mb-3">
+    <!-- Expense Tracker -->
+    <div class="col-lg-6">
+      <div class="card">
+        <div class="card-header"><i class="bi bi-wallet2"></i> Expense Tracker</div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6">
+              <label class="form-label">Number of People</label>
+              <input type="number" class="form-control" id="inp-people" value="4" min="1" max="20" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Who Paid</label>
+              <select id="inp-expense-payer" class="form-select"></select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Amount (₹)</label>
+              <input type="number" class="form-control" id="inp-expense-amount" min="0" step="1" value="0" />
+            </div>
+            <div class="col-6">
+              <label class="form-label">Purpose</label>
+              <input type="text" class="form-control" id="inp-expense-purpose" placeholder="Trip fuel, food, toll, etc." />
+            </div>
+          </div>
+          <button class="btn btn-accent w-100 mt-3" id="add-expense-btn">
+            <i class="bi bi-plus-lg"></i> Add Expense
+          </button>
+
+          <!-- Expense list -->
+          <div id="expense-list" class="mt-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense Split + Chart -->
+    <div class="col-lg-6">
+      <div class="card mb-3">
+        <div class="card-header"><i class="bi bi-people"></i> Expense Split</div>
+        <div class="card-body">
+          <div id="people-inputs" class="mb-3"></div>
+          <div id="split-result"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><i class="bi bi-pie-chart"></i> Expense Breakdown</div>
+        <div class="card-body d-flex justify-content-center">
+          <canvas id="expense-chart" width="300" height="300"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Itinerary -->
+  <div class="row g-3 mb-3">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-journal-text"></i> Suggested Itinerary</span>
+          <button class="btn btn-sm btn-outline-accent" id="toggle-itinerary">
+            <i class="bi bi-chevron-down"></i>
+          </button>
+        </div>
+        <div class="card-body" id="itinerary-body">
+          <div id="itinerary-content"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="footer-bar text-center py-2">
+  <small>Route: Coimbatore → Catherine Falls → Dolphin's Nose → Pykara → Needle Rock → Pookode → Lakkidi → Wayanad &nbsp;|&nbsp; PWA · Works Offline</small>
+</footer>
+
+<!-- Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:9999">
+  <div id="toast" class="toast align-items-center border-0" role="alert">
+    <div class="d-flex">
+      <div class="toast-body" id="toast-msg">Saved!</div>
+      <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast"></button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
